@@ -4,6 +4,7 @@
 
 **InnoPetCare** is a Flutter-based mobile application designed to streamline pet management for veterinary clinics and animal shelters. This hybrid application integrates pet health management and adoption services, providing a user-friendly platform for pet owners, veterinarians, and shelter staff. Built with Dart and Flutter, InnoPetCare ensures cross-platform compatibility, focusing on Android deployment with a robust content management system (CMS) backend.
 
+
 ---
 
 ## Table of Contents
@@ -23,6 +24,20 @@
 ## Overview
 
 InnoPetCare is an innovative solution developed to addresses inefficiencies in pet record management, appointment scheduling, and adoption processes faced by veterinary clinics and animal shelters. The mobile app, built using Flutter, offers a seamless experience with real-time updates, secure data handling, and compliance with Android Core App Quality Standards.
+
+
+![Main Menu](./assets/menu.png)
+
+
+### Content Listing Page
+
+![Home Page](./assets/home-page.png)
+
+### Login Page
+
+![Login Page](./assets/login.png)
+
+
 
 ---
 
