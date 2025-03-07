@@ -95,6 +95,9 @@ The app is designed with an intuitive UI, adhering to Google’s Material Design
 
 Explore InnoPetCare through these video demonstrations:
 
+[![image](https://github.com/user-attachments/assets/5f517cbe-9634-47a0-b207-2d41fb9d2f73)](https://www.youtube.com/watch?v=KVTFzqDwrP4)
+
+
 - **[InnoPetCare App Overview](https://www.youtube.com/watch?v=KVTFzqDwrP4)**: A general introduction to the app’s features and functionality.
 - **[InnoPetCare for Veterinarians](https://www.youtube.com/watch?v=wrhqs893spM)**: How veterinarians can utilize the app for clinic management.
 - **[InnoPetCare for Animal Shelters](https://www.youtube.com/watch?v=syIu3ZzdHDY)**: Features tailored for shelter staff and adoption processes.
@@ -107,7 +110,7 @@ The InnoPetCare app is deployed and available on the Google Play Store:
 
 - **[Download InnoPetCare on Play Store](https://play.google.com/store/apps/details?id=com.fordagraydes.innopetcare&hl=en)**
 
-![InnoPetCare Play Store](https://github.com/user-attachments/assets/fe32ff25-302a-4088-b555-8fbd9735bcaf)
+[![InnoPetCare Play Store](https://github.com/user-attachments/assets/fe32ff25-302a-4088-b555-8fbd9735bcaf)](https://play.google.com/store/apps/details?id=com.fordagraydes.innopetcare&hl=en)
 
 
 ---
