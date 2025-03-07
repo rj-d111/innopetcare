@@ -22,7 +22,7 @@
 
 ## Overview
 
-InnoPetCare is an innovative solution developed as an undergraduate capstone project by students of Lyceum of the Philippines University-Cavite. It addresses inefficiencies in pet record management, appointment scheduling, and adoption processes faced by veterinary clinics and animal shelters. The mobile app, built using Flutter, offers a seamless experience with real-time updates, secure data handling, and compliance with Android Core App Quality Standards.
+InnoPetCare is an innovative solution developed to addresses inefficiencies in pet record management, appointment scheduling, and adoption processes faced by veterinary clinics and animal shelters. The mobile app, built using Flutter, offers a seamless experience with real-time updates, secure data handling, and compliance with Android Core App Quality Standards.
 
 ---
 
