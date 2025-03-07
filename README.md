@@ -104,7 +104,10 @@ Explore InnoPetCare through these video demonstrations:
 
 The InnoPetCare app is deployed and available on the Google Play Store:
 
-- **[Download InnoPetCare](https://play.google.com/store/apps/details?id=com.fordagraydes.innopetcare&hl=en)**
+- **[Download InnoPetCare on Play Store](https://play.google.com/store/apps/details?id=com.fordagraydes.innopetcare&hl=en)**
+
+![InnoPetCare Play Store](https://github.com/user-attachments/assets/fe32ff25-302a-4088-b555-8fbd9735bcaf)
+
 
 ---
 
