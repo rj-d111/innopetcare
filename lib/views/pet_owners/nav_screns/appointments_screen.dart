@@ -7,6 +7,8 @@ import 'package:innopetcare/terms_conditions_screen.dart';
 import 'package:innopetcare/views/pet_owners/nav_screns/notifications_screen.dart';
 import 'package:innopetcare/views/privacy_policy_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+
 
 class AppointmentsScreen extends StatefulWidget {
   final String uid;
@@ -473,98 +475,110 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     );
   }
 
-  Future<void> submitAppointment() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+Future<void> submitAppointment() async {
+  if (_formKey.currentState!.validate()) {
+    _formKey.currentState!.save();
 
-      if (selectedDate == null || selectedTime == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please select both date and time')),
-        );
-        return;
+    if (selectedDate == null || selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select both date and time')),
+      );
+      return;
+    }
+
+    // Parse time
+    final timeParts = selectedTime!.split(':');
+    int hour = int.parse(timeParts[0]);
+    int minute = int.parse(timeParts[1].split(' ')[0]);
+    String period = timeParts[1].split(' ')[1]; // AM or PM
+
+    if (period == 'PM' && hour != 12) {
+      hour += 12;
+    } else if (period == 'AM' && hour == 12) {
+      hour = 0;
+    }
+
+    final selectedDateTime = DateTime(
+      selectedDate!.year,
+      selectedDate!.month,
+      selectedDate!.day,
+      hour,
+      minute,
+    );
+
+    final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDateTime);
+    final formattedTime =
+        '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+    try {
+      // Step 1: Reserve the time slot via Firebase Function
+      final functions = FirebaseFunctions.instanceFor();
+      final callable = functions.httpsCallable('reserveVetAppointmentSlot');
+
+      final response = await callable.call({
+        'clientId': widget.uid,
+        'projectId': widget.projectId,
+        'date': formattedDate,
+        'time': formattedTime,
+      });
+
+      if (response.data['success'] != true) {
+        throw Exception("Slot reservation failed: ${response.data['message']}");
       }
 
-      // Parse the selected time
-      final timeParts = selectedTime!.split(':');
-      int hour = int.parse(timeParts[0]);
-      int minute = int.parse(timeParts[1].split(' ')[0]);
-      String period = timeParts[1].split(' ')[1]; // AM or PM
+      // Step 2: Add appointment to Firestore
+      await FirebaseFirestore.instance.collection('appointments').add({
+        'clientId': widget.uid,
+        'condition': condition,
+        'additional': additionalInfo,
+        'event_datetime': Timestamp.fromDate(selectedDateTime),
+        'pet': selectedPet,
+        'projectId': widget.projectId,
+        'reason': selectedService,
+        'status': 'pending',
+        'createdAt': Timestamp.now(),
+      });
 
-      // Convert hour to 24-hour format if necessary
-      if (period == 'PM' && hour != 12) {
-        hour += 12; // Convert PM hour to 24-hour format
-      } else if (period == 'AM' && hour == 12) {
-        hour = 0; // Convert 12 AM to 0
-      }
+      print("Appointment submitted successfully!");
 
-      // Combine selected date and parsed time into a single DateTime object
-      DateTime selectedDateTime = DateTime(
-        selectedDate!.year,
-        selectedDate!.month,
-        selectedDate!.day,
-        hour,
-        minute,
+      final userMessage =
+          'Your appointment has been submitted for ${DateFormat('MMMM d, yyyy h:mm a').format(selectedDateTime)}. Status: Pending.';
+
+      // Step 3: Save notification
+      await FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(widget.projectId)
+          .collection(widget.uid)
+          .add({
+        'message': userMessage,
+        'read': false,
+        'timestamp': Timestamp.now(),
+        'type': 'appointment',
+      });
+
+      // Show success
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Appointment submitted successfully!')),
       );
 
-      // Format the date and time for the notification message
-      String formattedDate = DateFormat('yyyy-MM-dd').format(selectedDateTime);
-      String formattedTime = DateFormat('h:mm a').format(selectedDateTime);
-
-      try {
-        // Step 1: Add appointment to Firestore
-        await FirebaseFirestore.instance.collection('appointments').add({
-          'clientId': widget.uid,
-          'condition': condition,
-          'additional': additionalInfo,
-          'event_datetime': selectedDateTime,
-          'pet': selectedPet,
-          'projectId': widget.projectId,
-          'reason': selectedService,
-          'status': 'pending',
-          'createdAt': Timestamp.now(),
-        });
-
-        print("Appointment submitted successfully!");
-
-        print(formattedDate);
-        print(formattedTime);
-        // Step 2: Create a notification document
-        await FirebaseFirestore.instance
-            .collection('notifications')
-            .doc(widget.projectId)
-            .collection(widget.uid)
-            .add({
-          'message':
-              'Your appointment has been submitted for $formattedDate at $formattedTime. Status: Pending.',
-          'read': false,
-          'timestamp': Timestamp.now(),
-          'type': 'appointment',
-        });
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Appointment submitted successfully!')),
-        );
-
-        // Navigate to the Notifications screen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => NotificationsScreen(
-              uid: widget.uid,
-              projectId: widget.projectId,
-              colorTheme: widget.colorTheme,
-            ),
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => NotificationsScreen(
+            uid: widget.uid,
+            projectId: widget.projectId,
+            colorTheme: widget.colorTheme,
           ),
-        );
-      } catch (e) {
-        print("Error submitting appointment: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit appointment')),
-        );
-      }
-    } else {
-      print("Form validation failed");
+        ),
+      );
+    } catch (e) {
+      print("Error submitting appointment: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to submit appointment')),
+      );
     }
+  } else {
+    print("Form validation failed");
   }
+}
 }

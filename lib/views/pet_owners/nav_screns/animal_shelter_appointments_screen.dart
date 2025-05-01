@@ -6,6 +6,7 @@ import 'package:innopetcare/views/pet_owners/nav_screns/dashboard_screen.dart';
 import 'package:innopetcare/views/pet_owners/nav_screns/notifications_screen.dart';
 import 'package:innopetcare/views/privacy_policy_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class AnimalShelterAppointmentsScreen extends StatefulWidget {
   final String uid;
@@ -44,6 +45,7 @@ class _AnimalShelterAppointmentsScreenState
     super.initState();
     fetchCustomSchedules();
   }
+
   Future<void> fetchCustomSchedules() async {
     //Reference to the document
     DocumentReference docRef = FirebaseFirestore.instance
@@ -83,201 +85,224 @@ class _AnimalShelterAppointmentsScreenState
     return nextDate;
   }
 
+  List<String> getTimes(DateTime date) {
+    String dayKey = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday"
+    ][date.weekday % 7];
 
-
-List<String> getTimes(DateTime date) {
-  String dayKey = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday"
-  ][date.weekday % 7];
-
-  Map<String, dynamic>? schedule = customSchedules['customSchedules']?[dayKey];
-  if (schedule == null) {
-    return [];
-  }
-
-  String startTime = schedule['start']; // Stored as "HH:mm"
-  String endTime = schedule['end']; // Stored as "HH:mm"
-
-  int startHour = int.parse(startTime.split(':')[0]);
-  int startMinute = int.parse(startTime.split(':')[1]);
-  int endHour = int.parse(endTime.split(':')[0]);
-  int endMinute = int.parse(endTime.split(':')[1]);
-
-  List<String> timeSlots = [];
-  int currentHour = startHour;
-  int currentMinute = startMinute;
-
-  while (currentHour < endHour ||
-      (currentHour == endHour && currentMinute < endMinute)) {
-    // Use 24-hour format for backend logic
-    String timeSlot24Hour = _formatTime24Hour(currentHour, currentMinute);
-    timeSlots.add(timeSlot24Hour);
-
-    currentMinute += 30;
-    if (currentMinute >= 60) {
-      currentMinute = 0;
-      currentHour += 1;
+    Map<String, dynamic>? schedule =
+        customSchedules['customSchedules']?[dayKey];
+    if (schedule == null) {
+      return [];
     }
-  }
 
-  return timeSlots;
-}
+    String startTime = schedule['start']; // Stored as "HH:mm"
+    String endTime = schedule['end']; // Stored as "HH:mm"
+
+    int startHour = int.parse(startTime.split(':')[0]);
+    int startMinute = int.parse(startTime.split(':')[1]);
+    int endHour = int.parse(endTime.split(':')[0]);
+    int endMinute = int.parse(endTime.split(':')[1]);
+
+    List<String> timeSlots = [];
+    int currentHour = startHour;
+    int currentMinute = startMinute;
+
+    while (currentHour < endHour ||
+        (currentHour == endHour && currentMinute < endMinute)) {
+      // Use 24-hour format for backend logic
+      String timeSlot24Hour = _formatTime24Hour(currentHour, currentMinute);
+      timeSlots.add(timeSlot24Hour);
+
+      currentMinute += 30;
+      if (currentMinute >= 60) {
+        currentMinute = 0;
+        currentHour += 1;
+      }
+    }
+
+    return timeSlots;
+  }
 
 // Helper to format time in 24-hour format (HH:mm)
-String _formatTime24Hour(int hour, int minute) {
-  return "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
-}
+  String _formatTime24Hour(int hour, int minute) {
+    return "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
+  }
 
 // Helper to convert 24-hour format (HH:mm) to 12-hour format (hh:mm a)
-String formatTimeTo12Hour(String time24Hour) {
-  final hour = int.parse(time24Hour.split(':')[0]);
-  final minute = int.parse(time24Hour.split(':')[1]);
-  final time = DateTime(0, 1, 1, hour, minute);
-  return DateFormat('hh:mm a').format(time);
-}
-
-Future<List<String>> fetchAvailableTimeSlots(DateTime date) async {
-  try {
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('appointments')
-        .where('projectId', isEqualTo: widget.projectId)
-        .get();
-
-    String selectedDate = DateFormat('yyyy-MM-dd').format(date);
-
-    List<String> bookedSlots = snapshot.docs
-        .map((doc) {
-          if (doc['status'] != 'rejected') {
-            DateTime eventDateTime =
-                (doc['event_datetime'] as Timestamp).toDate();
-            if (DateFormat('yyyy-MM-dd').format(eventDateTime) == selectedDate) {
-              return DateFormat('HH:mm').format(eventDateTime); // 24-hour format
-            }
-          }
-          return null;
-        })
-        .where((slot) => slot != null)
-        .cast<String>()
-        .toList();
-
-    List<String> timeSlotsForDay = getTimes(date);
-
-    List<String> availableSlots = timeSlotsForDay
-        .where((slot) => !bookedSlots.contains(slot))
-        .toList();
-
-    // Convert available slots to 12-hour format for display
-    return availableSlots.map((slot) => formatTimeTo12Hour(slot)).toList();
-  } catch (e) {
-    print("Error fetching available time slots: $e");
-    return [];
+  String formatTimeTo12Hour(String time24Hour) {
+    final hour = int.parse(time24Hour.split(':')[0]);
+    final minute = int.parse(time24Hour.split(':')[1]);
+    final time = DateTime(0, 1, 1, hour, minute);
+    return DateFormat('hh:mm a').format(time);
   }
-}
 
+  Future<List<String>> fetchAvailableTimeSlots(DateTime date) async {
+    try {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('appointments')
+          .where('projectId', isEqualTo: widget.projectId)
+          .get();
 
+      String selectedDate = DateFormat('yyyy-MM-dd').format(date);
 
-  Future<void> _bookAppointment() async {
-    if (_formKey.currentState!.validate()) {
-      if (!agreeTerms) {
-        setState(() => agreeTerms = true); // Activate warning color
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text("Please agree to the Terms and Conditions to proceed."),
-          ),
-        );
-        return;
-      }
+      List<String> bookedSlots = snapshot.docs
+          .map((doc) {
+            if (doc['status'] != 'rejected') {
+              DateTime eventDateTime =
+                  (doc['event_datetime'] as Timestamp).toDate();
+              if (DateFormat('yyyy-MM-dd').format(eventDateTime) ==
+                  selectedDate) {
+                return DateFormat('HH:mm')
+                    .format(eventDateTime); // 24-hour format
+              }
+            }
+            return null;
+          })
+          .where((slot) => slot != null)
+          .cast<String>()
+          .toList();
 
-      if (!agreePrivacy) {
-        setState(() => agreePrivacy = true); // Activate warning color
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Please agree to the Privacy Policy to proceed."),
-          ),
-        );
-        return;
-      }
+      List<String> timeSlotsForDay = getTimes(date);
 
-      try {
-        // Parse the selected time
-        final timeParts = _selectedTime!.split(' ');
-        final timeNumbers = timeParts[0].split(':');
-        final int hour = int.parse(timeNumbers[0]) +
-            (timeParts[1].toLowerCase() == 'pm' &&
-                    int.parse(timeNumbers[0]) != 12
-                ? 12
-                : 0); // Adjust for PM hours
-        final int minute = int.parse(timeNumbers[1]);
+      List<String> availableSlots =
+          timeSlotsForDay.where((slot) => !bookedSlots.contains(slot)).toList();
 
-        // Create a DateTime object for the selected date and time
-        final selectedDateTime = DateTime(
-          _selectedDate!.year,
-          _selectedDate!.month,
-          _selectedDate!.day,
-          hour,
-          minute,
-        );
-
-        // Save the appointment
-        await FirebaseFirestore.instance.collection('appointments').add({
-          'clientId': widget.uid,
-          'event_datetime': selectedDateTime,
-          'projectId': widget.projectId,
-          'reason': _selectedReason,
-          'additional': _commentsController.text,
-          'numberOfVisitors': int.parse(_numberOfVisitorsController.text),
-          'status': 'pending',
-          'createdAt': Timestamp.now(),
-        });
-
-        // Notify the user
-        final formattedDateTime =
-            DateFormat('MMMM d, yyyy h:mm a').format(selectedDateTime);
-        final message =
-            'Your appointment has been submitted for $formattedDateTime. Status: Pending.';
-        _showLocalNotification(message);
-
-        // Save notification
-        await FirebaseFirestore.instance
-            .collection('notifications')
-            .doc(widget.projectId)
-            .collection(widget.uid)
-            .add({
-          'message': message,
-          'read': false,
-          'type': 'appointment',
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Appointment booked successfully")),
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => NotificationsScreen(
-              uid: widget.uid,
-              projectId: widget.projectId,
-              colorTheme: widget.colorTheme,
-            ),
-          ),
-        );
-      } catch (e) {
-        print("Error booking appointment: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to book appointment")),
-        );
-      }
+      // Convert available slots to 12-hour format for display
+      return availableSlots.map((slot) => formatTimeTo12Hour(slot)).toList();
+    } catch (e) {
+      print("Error fetching available time slots: $e");
+      return [];
     }
   }
+
+Future<void> _bookAppointment() async {
+  if (_formKey.currentState!.validate()) {
+    if (!agreeTerms) {
+      setState(() => agreeTerms = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Please agree to the Terms and Conditions to proceed."),
+        ),
+      );
+      return;
+    }
+
+    if (!agreePrivacy) {
+      setState(() => agreePrivacy = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Please agree to the Privacy Policy to proceed."),
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Parse time
+      final timeParts = _selectedTime!.split(' ');
+      final timeNumbers = timeParts[0].split(':');
+      int hour = int.parse(timeNumbers[0]);
+      int minute = int.parse(timeNumbers[1]);
+
+      if (timeParts[1].toLowerCase() == 'pm' && hour != 12) {
+        hour += 12;
+      } else if (timeParts[1].toLowerCase() == 'am' && hour == 12) {
+        hour = 0;
+      }
+
+      final selectedDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        hour,
+        minute,
+      );
+
+      final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate!);
+      final formattedTime = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+      // Prepare slot reservation request
+      final requestData = {
+        'clientId': widget.uid,
+        'projectId': widget.projectId,
+        'date': formattedDate,
+        'time': formattedTime,
+        'reason': _selectedReason,
+        'additional': _commentsController.text,
+        'pet': '', // if you have pet data, fill it in
+        'condition': '', // if applicable
+        'numberOfVisitors': int.parse(_numberOfVisitorsController.text),
+      };
+
+      // Step 1: Call the Firebase Function to reserve the slot
+      final functions = FirebaseFunctions.instanceFor();
+      final callable = functions.httpsCallable('bookAppointment'); // or 'reserveAppointmentSlot'
+      final response = await callable.call(requestData);
+
+      if (response.data['success'] != true) {
+        throw Exception("Slot reservation failed: ${response.data['message']}");
+      }
+
+      // Step 2: Save appointment to Firestore
+      await FirebaseFirestore.instance.collection('appointments').add({
+        'clientId': widget.uid,
+        'event_datetime': Timestamp.fromDate(selectedDateTime),
+        'projectId': widget.projectId,
+        'reason': _selectedReason,
+        'additional': _commentsController.text,
+        'numberOfVisitors': int.parse(_numberOfVisitorsController.text),
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Step 3: Notify the user
+      final formattedDateTime =
+          DateFormat('MMMM d, yyyy h:mm a').format(selectedDateTime);
+      final message =
+          'Your appointment has been submitted for $formattedDateTime. Status: Pending.';
+      await _showLocalNotification(message);
+
+      // Step 4: Save notification to Firestore
+      await FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(widget.projectId)
+          .collection(widget.uid)
+          .add({
+        'message': message,
+        'read': false,
+        'type': 'appointment',
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Appointment booked successfully")),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => NotificationsScreen(
+            uid: widget.uid,
+            projectId: widget.projectId,
+            colorTheme: widget.colorTheme,
+          ),
+        ),
+      );
+    } catch (e) {
+      print("Error booking appointment: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to book appointment: $e")),
+      );
+    }
+  }
+}
 
   Future<void> _showLocalNotification(String message) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
@@ -357,7 +382,7 @@ Future<List<String>> fetchAvailableTimeSlots(DateTime date) async {
                               .toList();
                       List<int> disableDaysOfWeek =
                           List<int>.from(customSchedules['disableDaysOfWeek']);
-// Convert 0 (Sunday) to 7 (Sunday) to match DateTime.weekday representation
+                      // Convert 0 (Sunday) to 7 (Sunday) to match DateTime.weekday representation
                       disableDaysOfWeek = disableDaysOfWeek
                           .map((day) => day == 0 ? 7 : day)
                           .toList();
@@ -391,12 +416,11 @@ Future<List<String>> fetchAvailableTimeSlots(DateTime date) async {
                     // Fetch and update available time slots for the new date
                     final availableSlots =
                         await fetchAvailableTimeSlots(pickedDate);
-                    final times = getTimes(pickedDate);
 
-                    // Update the time slots after clearing
+                    // Update the time slots with available slots only
                     setState(() {
-                      _times.addAll(availableSlots);
-                      _times.addAll(times);
+                      _times.addAll(
+                          availableSlots); // Only add 12-hour format times
                     });
                   }
                 },
@@ -409,7 +433,6 @@ Future<List<String>> fetchAvailableTimeSlots(DateTime date) async {
                       : '',
                 ),
               ),
-
               SizedBox(height: 16),
 
 // Appointment Time
